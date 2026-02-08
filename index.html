@@ -37,6 +37,8 @@
 import * as THREE from 'three';
 import { OBJLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/OBJLoader.js';
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/controls/OrbitControls.js';
+import { MTLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/MTLLoader.js';
+
 
 /* =========================
    СЦЕНА
@@ -82,53 +84,56 @@ scene.add(new THREE.AxesHelper(2));
 /* =========================
    OBJ
    ========================= */
-const loader = new OBJLoader();
+const mtlLoader = new MTLLoader();
+const objLoader = new OBJLoader();
+
 let model = null;
 
-loader.load('model.obj', obj => {
+mtlLoader.load('model.mtl', materials => {
 
-  obj.traverse(child => {
-    if (child.isMesh) {
-      child.material = new THREE.MeshNormalMaterial();
-    }
+  materials.preload();
+
+  objLoader.setMaterials(materials);
+
+  objLoader.load('model.obj', obj => {
+
+    // Масштаб
+    obj.scale.setScalar(0.00001);
+
+    scene.add(obj);
+
+    // ====== ГАБАРИТЫ МОДЕЛИ ======
+    const box = new THREE.Box3().setFromObject(obj);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+
+    // Центрируем модель
+    obj.position.sub(center);
+
+    // ====== АВТОПОЗИЦИЯ КАМЕРЫ ======
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * Math.PI / 180;
+    let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
+    cameraDistance *= 1.5;
+
+    camera.position.set(
+      cameraDistance,
+      cameraDistance * 0.7,
+      cameraDistance
+    );
+
+    camera.lookAt(0, 0, 0);
+
+    controls.target.set(0, 0, 0);
+    controls.update();
+
+    model = obj;
+
+    console.log('OBJ + MTL загружены');
   });
 
-  // Масштаб
-  obj.scale.setScalar(0.00001);
-
-  scene.add(obj);
-
-  // ====== ГАБАРИТЫ МОДЕЛИ ======
-  const box = new THREE.Box3().setFromObject(obj);
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-
-  // Центрируем модель
-  obj.position.sub(center);
-
-  // ====== АВТОПОЗИЦИЯ КАМЕРЫ ======
-  const maxDim = Math.max(size.x, size.y, size.z);
-  const fov = camera.fov * (Math.PI / 180);
-  let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
-
-  cameraDistance *= 1.5; // запас
-
-  camera.position.set(
-    cameraDistance,
-    cameraDistance * 0.7,
-    cameraDistance
-  );
-
-  camera.lookAt(0, 0, 0);
-
-  // OrbitControls — вращение вокруг модели
-  controls.target.set(0, 0, 0);
-  controls.update();
-
-  model = obj;
-
-  console.log('OBJ загружен и вид центрирован');
 });
+
 
 /* =========================
    LOOP
