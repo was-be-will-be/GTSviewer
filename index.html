@@ -24,6 +24,18 @@
       border-radius: 4px;
       z-index: 10;
     }
+
+    .point-label {
+      position: absolute;
+      font: 12px sans-serif;
+      color: #fff;
+      background: rgba(200,0,0,0.8);
+      padding: 2px 6px;
+      border-radius: 3px;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      white-space: nowrap;
+    }
   </style>
 
   <!-- importmap -->
@@ -75,7 +87,6 @@ document.body.appendChild(renderer.domElement);
    ========================= */
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.dampingFactor = 0.05;
 
 /* =========================
    СВЕТ
@@ -92,6 +103,18 @@ scene.add(light);
 scene.add(new THREE.AxesHelper(2));
 
 /* =========================
+   ДАННЫЕ ТОЧКИ
+   ========================= */
+const pointData = {
+  name: 'МБ-1',
+  position: new THREE.Vector3(46090, 269000, 122433)
+};
+
+let pointMesh;
+let pointLabel;
+let modelCenter = new THREE.Vector3();
+
+/* =========================
    OBJ + MTL
    ========================= */
 const mtlLoader = new MTLLoader();
@@ -104,35 +127,62 @@ mtlLoader.load('model.mtl', materials => {
 
   objLoader.load('model.obj', obj => {
 
-    // Масштаб
     obj.scale.setScalar(0.00001);
     scene.add(obj);
 
-    // ====== ГАБАРИТЫ ======
     const box = new THREE.Box3().setFromObject(obj);
-    const center = box.getCenter(new THREE.Vector3());
+    modelCenter = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
 
-    // Центрирование модели
-    obj.position.sub(center);
+    // Центрируем модель
+    obj.position.sub(modelCenter);
 
-    // ====== АВТОПОЗИЦИЯ КАМЕРЫ ======
+/* =========================
+   ТОЧКА (МБ-1)
+   ========================= */
+const POINT_SIZE = 1000;
+const SCALE = 0.00001;
+
+const pointGeometry = new THREE.SphereGeometry(
+  POINT_SIZE * SCALE,
+  24,
+  24
+);
+
+const pointMaterial = new THREE.MeshStandardMaterial({
+  color: 0xff0000
+});
+
+pointMesh = new THREE.Mesh(pointGeometry, pointMaterial);
+
+// координаты + масштаб + центрирование
+pointMesh.position
+  .copy(pointData.position)
+  .multiplyScalar(SCALE)
+  .sub(modelCenter);
+
+scene.add(pointMesh);
+
+    // HTML-подпись
+    pointLabel = document.createElement('div');
+    pointLabel.className = 'point-label';
+    pointLabel.textContent = pointData.name;
+    document.body.appendChild(pointLabel);
+
+    /* =========================
+       КАМЕРА
+       ========================= */
     const maxDim = Math.max(size.x, size.y, size.z);
     const fov = camera.fov * Math.PI / 180;
     let dist = maxDim / (2 * Math.tan(fov / 2));
     dist *= 1.5;
 
-    camera.position.set(
-      dist,
-      dist * 0.7,
-      dist
-    );
-
+    camera.position.set(dist, dist * 0.7, dist);
     camera.lookAt(0, 0, 0);
     controls.target.set(0, 0, 0);
     controls.update();
 
-    console.log('OBJ + MTL загружены');
+    console.log('OBJ + MTL + точка МБ-1 загружены');
   });
 });
 
@@ -141,6 +191,19 @@ mtlLoader.load('model.mtl', materials => {
    ========================= */
 function animate() {
   requestAnimationFrame(animate);
+
+  // обновление позиции подписи
+  if (pointMesh && pointLabel) {
+    const pos = pointMesh.position.clone();
+    pos.project(camera);
+
+    const x = (pos.x * 0.5 + 0.5) * innerWidth;
+    const y = (-pos.y * 0.5 + 0.5) * innerHeight;
+
+    pointLabel.style.left = `${x}px`;
+    pointLabel.style.top = `${y}px`;
+  }
+
   controls.update();
   renderer.render(scene, camera);
 }
