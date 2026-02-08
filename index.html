@@ -3,20 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <title>DigitalTwin.GTS</title>
-<div id="label">Цифровой двойник водоприёмного узла</div>
 
-<style>
-#label {
-  position: absolute;
-  top: 10px;
-  left: 15px;
-  font: 14px/1.4 sans-serif;
-  color: #333;
-  background: rgba(255,255,255,0.8);
-  padding: 6px 10px;
-  border-radius: 4px;
-}
-</style>
+  <div id="label">Цифровой двойник водоприёмного узла</div>
+
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #eee;
+    }
+
+    #label {
+      position: absolute;
+      top: 10px;
+      left: 15px;
+      font: 14px/1.4 sans-serif;
+      color: #333;
+      background: rgba(255,255,255,0.8);
+      padding: 6px 10px;
+      border-radius: 4px;
+      z-index: 10;
+    }
+  </style>
 
   <!-- importmap -->
   <script type="importmap">
@@ -39,7 +47,6 @@ import { OBJLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm
 import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/controls/OrbitControls.js';
 import { MTLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.158/examples/jsm/loaders/MTLLoader.js';
 
-
 /* =========================
    СЦЕНА
    ========================= */
@@ -49,8 +56,12 @@ scene.background = new THREE.Color(0xeeeeee);
 /* =========================
    КАМЕРА
    ========================= */
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.01, 10000);
-camera.position.set(0, 2, 5);
+const camera = new THREE.PerspectiveCamera(
+  60,
+  innerWidth / innerHeight,
+  0.01,
+  10000
+);
 
 /* =========================
    RENDERER
@@ -65,13 +76,12 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.05;
-controls.target.set(0, 0, 0);
-controls.update();
 
 /* =========================
    СВЕТ
    ========================= */
 scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+
 const light = new THREE.DirectionalLight(0xffffff, 0.8);
 light.position.set(5, 10, 5);
 scene.add(light);
@@ -82,58 +92,49 @@ scene.add(light);
 scene.add(new THREE.AxesHelper(2));
 
 /* =========================
-   OBJ
+   OBJ + MTL
    ========================= */
 const mtlLoader = new MTLLoader();
 const objLoader = new OBJLoader();
 
-let model = null;
-
 mtlLoader.load('model.mtl', materials => {
 
   materials.preload();
-
   objLoader.setMaterials(materials);
 
   objLoader.load('model.obj', obj => {
 
     // Масштаб
     obj.scale.setScalar(0.00001);
-
     scene.add(obj);
 
-    // ====== ГАБАРИТЫ МОДЕЛИ ======
+    // ====== ГАБАРИТЫ ======
     const box = new THREE.Box3().setFromObject(obj);
     const center = box.getCenter(new THREE.Vector3());
     const size = box.getSize(new THREE.Vector3());
 
-    // Центрируем модель
+    // Центрирование модели
     obj.position.sub(center);
 
     // ====== АВТОПОЗИЦИЯ КАМЕРЫ ======
     const maxDim = Math.max(size.x, size.y, size.z);
     const fov = camera.fov * Math.PI / 180;
-    let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
-    cameraDistance *= 1.5;
+    let dist = maxDim / (2 * Math.tan(fov / 2));
+    dist *= 1.5;
 
     camera.position.set(
-      cameraDistance,
-      cameraDistance * 0.7,
-      cameraDistance
+      dist,
+      dist * 0.7,
+      dist
     );
 
     camera.lookAt(0, 0, 0);
-
     controls.target.set(0, 0, 0);
     controls.update();
 
-    model = obj;
-
     console.log('OBJ + MTL загружены');
   });
-
 });
-
 
 /* =========================
    LOOP
