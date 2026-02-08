@@ -3,9 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <title>DigitalTwin.GTS</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: #eee; }
-  </style>
+<div id="label">Цифровой двойник водоприёмного узла</div>
+
+<style>
+#label {
+  position: absolute;
+  top: 10px;
+  left: 15px;
+  font: 14px/1.4 sans-serif;
+  color: #333;
+  background: rgba(255,255,255,0.8);
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+</style>
 
   <!-- importmap -->
   <script type="importmap">
@@ -36,7 +47,7 @@ scene.background = new THREE.Color(0xeeeeee);
 /* =========================
    КАМЕРА
    ========================= */
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.01, 10000);
 camera.position.set(0, 2, 5);
 
 /* =========================
@@ -85,19 +96,38 @@ loader.load('model.obj', obj => {
   // Масштаб
   obj.scale.setScalar(0.00001);
 
-  // Центрирование
+  scene.add(obj);
+
+  // ====== ГАБАРИТЫ МОДЕЛИ ======
   const box = new THREE.Box3().setFromObject(obj);
   const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+
+  // Центрируем модель
   obj.position.sub(center);
 
-  // Камера вращается вокруг модели
-  controls.target.copy(center);
+  // ====== АВТОПОЗИЦИЯ КАМЕРЫ ======
+  const maxDim = Math.max(size.x, size.y, size.z);
+  const fov = camera.fov * (Math.PI / 180);
+  let cameraDistance = maxDim / (2 * Math.tan(fov / 2));
+
+  cameraDistance *= 1.5; // запас
+
+  camera.position.set(
+    cameraDistance,
+    cameraDistance * 0.7,
+    cameraDistance
+  );
+
+  camera.lookAt(0, 0, 0);
+
+  // OrbitControls — вращение вокруг модели
+  controls.target.set(0, 0, 0);
   controls.update();
 
-  scene.add(obj);
   model = obj;
 
-  console.log('OBJ загружен');
+  console.log('OBJ загружен и вид центрирован');
 });
 
 /* =========================
@@ -105,11 +135,6 @@ loader.load('model.obj', obj => {
    ========================= */
 function animate() {
   requestAnimationFrame(animate);
-
-  if (model) {
-    model.rotation.y += 0.000;
-  }
-
   controls.update();
   renderer.render(scene, camera);
 }
